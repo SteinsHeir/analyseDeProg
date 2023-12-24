@@ -1,0 +1,6 @@
+Main {
+    Point X = 3;
+    Point Y = X + 2;
+    Polyhedron x = (X, Y, Z);
+    Function mul3 = x * 3;
+}

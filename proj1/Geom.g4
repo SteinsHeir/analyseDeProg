@@ -2,35 +2,27 @@ grammar Geom;
 
 import GeomWords;
 
-pointdecl: POINT ID;
-pointval: ID EQUAL LPAR DIGIT* COMMA DIGIT* RPAR | ID EQUAL  ;
-polydecl: POLYHEDRON;
-polyval: ID EQUAL LPAR ID (COMMA ID)* RPAR;
-stringdecl: STRING;
+main: MAIN LBRA (valdecl | polydecl | funcdecl)* RBRA;
+
+valdecl: POINT ID EQUAL exprcomp SEMICOLON;
+polydecl: POLYHEDRON ID EQUAL LPAR ID (COMMA ID)* RPAR SEMICOLON;
+funcdecl: FUNC ID  EQUAL exprcomp SEMICOLON;
 integer: MINUS? NUMERIC;
 
 booleq: DIFF | EQUAL;
 int_comp_op: G | GE | L | LE;
 booldecl: BOOLEAN;
 
-exprd:stringdecl
-| ID
-| integer
-| LPAR exprd  RPAR
-| exprent
-| exprbool;
-
 exprent: exprent (DIV | MUL) exprent
+| LPAR exprent RPAR
 | exprent (PLUS | MINUS) exprent
 | exprent MOD exprent
 | MINUS LPAR exprent RPAR
 | MINUS? ID
 | integer
-| MINUS? ID
-| LPAR exprd RPAR ;
+;
 
 exprcomp: ID |
-| stringdecl
 | booldecl
 | exprent
 ;

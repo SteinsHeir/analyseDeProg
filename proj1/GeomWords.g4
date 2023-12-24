@@ -1,7 +1,13 @@
 lexer grammar GeomWords;
 
+WS: [ \n\t\r]+ -> channel(HIDDEN);
+
+MAIN: 'Main';
+FUNC: 'Function';
 LPAR: '(';
 RPAR: ')';
+LBRA: '{';
+RBRA: '}';
 COMMA: ',';
 SEMICOLON: ';';
 IF:'if';

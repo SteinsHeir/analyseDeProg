@@ -1,9 +1,10 @@
 
 class Constraint():
 
-    def __init__(self, x, y, consType, value):
+    def __init__(self, x, y, d, consType, value):
         self.x = x
         self.y = y
+        self.d = d
         self.consType = consType
         self.value = value
 
@@ -18,4 +19,4 @@ class Constraint():
                 op = '<'
             case 3:
                 op = '>'
-        return f'{self.x}x {self.y}y {op} {self.value}'
+        return f'{self.x}x {self.y}y {self.d}d {op} {self.value}'

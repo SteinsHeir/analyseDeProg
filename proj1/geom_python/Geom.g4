@@ -2,16 +2,16 @@ grammar Geom;
 
 import GeomWords;
 
-main: MAIN LBRA (valdecl | polydecl | funcdecl | consdecl)+ interpointconsdecl* RBRA;
+main: MAIN LBRA (consdecl)+ (interpointconsdecl | intervaldecl)* RBRA;
 
-valdecl: 'Point' ID SEMICOLON;
-polydecl: POLYHEDRON ID EQUAL LPAR ID (COMMA ID)* RPAR SEMICOLON;
-funcdecl: FUNC ID  EQUAL exprcomp SEMICOLON;
 consdecl: CONS ID ':' LBRA lindecl* RBRA;
 interpointconsdecl: ID 'of' ID int_comp_op ID 'of' ID SEMICOLON;
-lindecl: (numericValue | MINUS)? ID (linop numericValue? ID)? int_comp_op numericValue SEMICOLON;
+intervaldecl: 'Interval' ID EQUAL LA numericValue COMMA numericValue RA SEMICOLON;
+lindecl: leftexpr rightexpr? (linop numericValue)? int_comp_op numericValue SEMICOLON;
 numericValue: MINUS? NUMERIC (COMMA NUMERIC)?;
 
+leftexpr: (numericValue | MINUS)? ID;
+rightexpr: linop numericValue? ID;
 booleq: DIFF | EQUAL;
 int_comp_op: G | GE | L | LE;
 booldecl: BOOLEAN;

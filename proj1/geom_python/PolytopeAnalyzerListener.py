@@ -1,9 +1,11 @@
 import sys
+from sympy import *
 from antlr4 import *
 from GeomParser import GeomParser
 from GeomListener import GeomListener
 import cdd
 from Constraint import Constraint
+from spb import *
 
 
 class PolytopeAnalyzerListener(GeomListener):
@@ -25,97 +27,53 @@ class PolytopeAnalyzerListener(GeomListener):
         value = 0
         xCoef = 1
         yCoef = 1
+        dCoef = 0
         consType = 0
-        if(ctx.linop()):
-            print(ctx.linop().getText())
-        if ctx.int_comp_op() and ctx.ID() and ctx.numericValue():
-            match ctx.int_comp_op().getText():
-                case '>=':
-                    consType = 1
-                case '<':
-                    consType = 2
-                case '>':
-                    consType = 3
-            if len(ctx.numericValue()) == 1:
-                value = int(ctx.numericValue(0).getText())
-                if ctx.MINUS():
-                    if ctx.ID(0).getText() == 'x':
-                        xCoef = -1
-                    else:
-                        yCoef = -1
-            if ctx.linop() and len(ctx.ID()) > 1:
-                if len(ctx.numericValue()) == 3:
-                    if ctx.ID(0).getText() == 'x':
-                        xCoef = int(ctx.numericValue(0).getText())
-                    else :
-                        yCoef = int(ctx.numericValue(0).getText())
-                    if(ctx.linop().MINUS()):
-                        if ctx.ID(1).getText() == 'x':
-                            xCoef = -int(ctx.numericValue(1).getText())
-                        else:
-                            yCoef = -int(ctx.numericValue(1).getText())
-                    else:
-                        if ctx.ID(1).getText() == 'x':
-                            xCoef = int(ctx.numericValue(1).getText())
-                        else:
-                            yCoef = int(ctx.numericValue(1).getText())
-                    value = int(ctx.numericValue(2).getText())
-                if len(ctx.numericValue()) == 2:
-                    print('hi')
-                    # - x + wy <= z
-                    if ctx.MINUS():
-                        if ctx.ID(0).getText() == 'x':
-                            xCoef = -1
-                        else:
-                            yCoef = -1
-                        if ctx.linop().MINUS():
-                            if ctx.ID(1).getText() == 'x':
-                                xCoef = -int(ctx.numericValue(0).getText())
-                            else:
-                                yCoef = -int(ctx.numericValue(0).getText())
-                        else:
-                            if ctx.ID(1).getText() == 'x':
-                                xCoef = int(ctx.numericValue(0).getText())
-                            else:
-                                yCoef = int(ctx.numericValue(0).getText())
-                    # x + wy <= z
-                    ctx.getSourceInterval()
-                    if ctx.ID(1).getText() == 'x':
-                        xCoef = int(ctx.numericValue(0).getText())
-                    else:
-                        yCoef = int(ctx.numericValue(0).getText())
-                    if ctx.linop().MINUS():
-                        if ctx.ID(1).getText() == 'x':
-                            xCoef = -xCoef
-                        else:
-                            yCoef = -yCoef
-                    value = int(ctx.numericValue(1).getText())
-            elif len(ctx.numericValue()) > 1:
-                print(ctx.linop().getText())
-                if ctx.linop().MINUS():
-                    if ctx.ID(0).getText() == 'x':
-                        xCoef = -int(ctx.numericValue(0).getText())
-                        yCoef = 0
-                    else:
-                        yCoef = -int(ctx.numericValue(0).getText())
-                        xCoef = 0
-                else:
-                    if ctx.ID(0).getText() == 'x':
-                        xCoef = int(ctx.numericValue(0).getText())
-                        yCoef = 0
-                    else:
-                        yCoef = int(ctx.numericValue(0).getText())
-                        xCoef = 0
-            else:
-                if ctx.ID(0).getText() == 'x':
-                    yCoef = 0
-                else:
-                    xCoef = 0
-            res = Constraint(xCoef, yCoef, consType, value)
+        l = ctx.leftexpr()
+        if l.ID().getText() == 'x':
+            if l.numericValue():
+                xCoef = int(l.numericValue().getText())
+            elif l.MINUS():
+                xCoef = -1
         else:
-            pass
+            if l.numericValue():
+                yCoef = int(l.numericValue().getText())
+            elif l.MINUS():
+                yCoef = -1
+        if ctx.rightexpr():
+            r = ctx.rightexpr()
+            if r.ID().getText() == 'x':
+                if r.numericValue():
+                    xCoef = int(r.numericValue().getText())
+                if r.linop().MINUS():
+                    xCoef = -xCoef
+            else:
+                if r.numericValue():
+                    yCoef = int(r.numericValue().getText())
+                if r.linop().MINUS():
+                    yCoef = -yCoef
+        else:
+            if l.ID().getText() == 'x':
+                yCoef = 0
+            else:
+                xCoef = 0
+        match ctx.int_comp_op().getText():
+            case '>=':
+                consType = 1
+            case '<':
+                consType = 2
+            case '>':
+                consType = 3
+        if len(ctx.numericValue()) > 1:
+            dCoef = int(ctx.numericValue(0).getText())
+            if ctx.linop().MINUS():
+                dCoef = -dCoef
+            value = int(ctx.numericValue(1).getText())
+        else:
+            value = int(ctx.numericValue(0).getText())
+        #res = Constraint(xCoef, yCoef, dCoef, consType, value)
+        res = [xCoef, yCoef, dCoef, consType, value]
         self.matrices[self.currentPoint].append(res)
-        print(f"constraint : {res.getText()} for point {self.currentPoint} parsed")
 
     def exitConsdecl(self, ctx: GeomParser.ConsdeclContext):
         self.currentPoint = ''
@@ -127,7 +85,54 @@ class PolytopeAnalyzerListener(GeomListener):
             if i == 3:
                 pass
 
+    def exitMain(self, ctx:GeomParser.MainContext):
+        for matrix in self.matrices:
+            self.drawPolygon(self.matrices[matrix])
+            print(f'matrix of {matrix} \n---')
+            # for row in self.matrices[matrix]:
+            #     print(row.getText())
+            # print('---')
+            #
+            #
+            for row in self.matrices[matrix]:
+                print(row)
+            print('---')
 
     def drawPolygon(self, matrix):
+        var("x, y")
 
-        pass
+        plotLength = [0, 0]
+        expr = True
+
+        for i in range(0, len(matrix)):
+            a = matrix[i][0]
+            b = matrix[i][1]
+            c = matrix[i][2]
+            v = matrix[i][4]
+
+            if v > plotLength[1]:
+                plotLength[1] = v
+            if v < plotLength[0]:
+                plotLength[0] = v
+
+            match matrix[i][3]:
+                case 0:
+                    rep = (a * x + b * y + c <= v)
+                case 1:
+                    rep = (a * x + b * y + c >= v)
+                case 2:
+                    rep = (a * x + b * y + c < v)
+                case 3:
+                    rep = (a * x + b * y + c > v)
+            expr = expr & rep
+            print(expr)
+        expressions = []
+        for a in expr.args:
+            #print(a)
+            rhs = a.args[len(a.args) - 1]
+            expressions.append((rhs, str(a)))
+
+        p1 = plot(*expressions, (x, plotLength[0], plotLength[1]), aspect="equal",
+                  rendering_kw={"linestyle": "--"})
+        p2 = plot_implicit(expr, (x, plotLength[0], plotLength[1]), (y, plotLength[0], plotLength[1]))
+        (p1 + p2).show()

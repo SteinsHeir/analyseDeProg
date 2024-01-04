@@ -1,4 +1,6 @@
 import sys
+from sympy.abc import x, y
+import sympy.solvers.inequalities
 from sympy import *
 from antlr4 import *
 from GeomParser import GeomParser
@@ -13,6 +15,7 @@ class PolytopeAnalyzerListener(GeomListener):
     matrix = []
     errors = []
     currentPoint = ''
+    plotInterval = {}
 
     def __init__(self, points):
         self.points = points
@@ -85,9 +88,17 @@ class PolytopeAnalyzerListener(GeomListener):
             if i == 3:
                 pass
 
+    def enterIntervaldecl(self, ctx:GeomParser.IntervaldeclContext):
+        vall = int(ctx.numericValue(0).getText())
+        valr = int(ctx.numericValue(1).getText())
+        if ctx.ID(0).getText() == 'x':
+            self.plotInterval[ctx.ID(1).getText()] = [[vall, valr], []]
+        else:
+            self.plotInterval[ctx.ID(1).getText()] = [[],[vall, valr]]
+
     def exitMain(self, ctx:GeomParser.MainContext):
         for matrix in self.matrices:
-            self.drawPolygon(self.matrices[matrix])
+            self.drawPolygon(self.matrices[matrix], matrix)
             print(f'matrix of {matrix} \n---')
             # for row in self.matrices[matrix]:
             #     print(row.getText())
@@ -98,10 +109,26 @@ class PolytopeAnalyzerListener(GeomListener):
                 print(row)
             print('---')
 
-    def drawPolygon(self, matrix):
+    def drawPolygon(self, matrix, name):
         var("x, y")
+        m = []
+        for i in range(0, len(matrix)):
+            x1 = matrix[i][0]
+            x2 = matrix[i][1]
+            d1 = matrix[i][2]
+            v1 = matrix[i][4]
+            if matrix[i][3] == 1:
+                x1 = -x1
+                x2 = -x2
+                d1 = -d1
+                v1 = -v1
+            m.append([x1, x2, d1, v1])
+        m2 = cdd.Matrix(m)
+        m2.rep_type = cdd.RepType.INEQUALITY
+        poly = cdd.Polyhedron(m2)
+        print(poly.get_generators())
+        print([list(adj) for adj in poly.get_adjacency()])
 
-        plotLength = [0, 0]
         expr = True
 
         for i in range(0, len(matrix)):
@@ -110,29 +137,40 @@ class PolytopeAnalyzerListener(GeomListener):
             c = matrix[i][2]
             v = matrix[i][4]
 
-            if v > plotLength[1]:
-                plotLength[1] = v
-            if v < plotLength[0]:
-                plotLength[0] = v
-
             match matrix[i][3]:
                 case 0:
                     rep = (a * x + b * y + c <= v)
                 case 1:
-                    rep = (a * x + b * y + c >= v)
+                    rep = (-a * x -b * y - c <= -v)
                 case 2:
                     rep = (a * x + b * y + c < v)
                 case 3:
                     rep = (a * x + b * y + c > v)
             expr = expr & rep
-            print(expr)
         expressions = []
         for a in expr.args:
-            #print(a)
             rhs = a.args[len(a.args) - 1]
             expressions.append((rhs, str(a)))
 
-        p1 = plot(*expressions, (x, plotLength[0], plotLength[1]), aspect="equal",
+        xRes = sympy.solvers.inequalities.reduce_inequalities(expr.args, [x])
+        yRes = sympy.solvers.inequalities.reduce_inequalities(xRes, [y])
+        print(xRes)
+        print(yRes)
+
+
+        inter = [[], []]
+        if self.plotInterval[name]:
+            inter = self.plotInterval[name]
+            if not inter[0]:
+                inter[0] = [-10, 10]
+            if not inter[1]:
+                inter[1] = [-10, 10]
+        else:
+            inter = [[-10, 10], [-10, 10]]
+
+
+
+        p1 = plot(*expressions, (x, inter[0][0], inter[0][1]),
                   rendering_kw={"linestyle": "--"})
-        p2 = plot_implicit(expr, (x, plotLength[0], plotLength[1]), (y, plotLength[0], plotLength[1]))
+        p2 = plot_implicit(expr, (x, inter[0][0], inter[0][1]), (y, inter[1][0], inter[1][1]))
         (p1 + p2).show()

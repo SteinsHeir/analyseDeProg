@@ -6,7 +6,7 @@ main: MAIN LBRA (consdecl)+ (interpointconsdecl | intervaldecl)* RBRA;
 
 consdecl: CONS ID ':' LBRA lindecl* RBRA;
 interpointconsdecl: ID 'of' ID int_comp_op ID 'of' ID SEMICOLON;
-intervaldecl: 'Interval' ID EQUAL LA numericValue COMMA numericValue RA SEMICOLON;
+intervaldecl: 'Interval' ID 'of' ID EQUAL LA numericValue COMMA numericValue RA SEMICOLON;
 lindecl: leftexpr rightexpr? (linop numericValue)? int_comp_op numericValue SEMICOLON;
 numericValue: MINUS? NUMERIC (COMMA NUMERIC)?;
 

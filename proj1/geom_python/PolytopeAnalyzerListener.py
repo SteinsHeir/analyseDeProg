@@ -1,13 +1,11 @@
-import sys
+
 from sympy.abc import x, y
-import sympy.solvers.inequalities
 from sympy import *
-from antlr4 import *
 from GeomParser import GeomParser
 from GeomListener import GeomListener
 import cdd
-from Constraint import Constraint
 from spb import *
+import numpy as np
 
 
 class PolytopeAnalyzerListener(GeomListener):
@@ -22,6 +20,7 @@ class PolytopeAnalyzerListener(GeomListener):
         pointNames = points.keys()
         for name in pointNames:
             self.matrices[name] = []
+            self.plotInterval[name] = [[], []]
 
     def enterConsdecl(self, ctx: GeomParser.ConsdeclContext):
         self.currentPoint = ctx.ID().getText()
@@ -99,78 +98,81 @@ class PolytopeAnalyzerListener(GeomListener):
     def exitMain(self, ctx:GeomParser.MainContext):
         for matrix in self.matrices:
             self.drawPolygon(self.matrices[matrix], matrix)
-            print(f'matrix of {matrix} \n---')
+            #print(f'matrix of {matrix} \n---')
             # for row in self.matrices[matrix]:
             #     print(row.getText())
             # print('---')
             #
             #
-            for row in self.matrices[matrix]:
-                print(row)
-            print('---')
+            #for row in self.matrices[matrix]:
+            #    print(row)
+            #print('---')
 
     def drawPolygon(self, matrix, name):
+        print(f'-----{name}-----')
         var("x, y")
         m = []
+
         for i in range(0, len(matrix)):
             x1 = matrix[i][0]
             x2 = matrix[i][1]
             d1 = matrix[i][2]
             v1 = matrix[i][4]
-            if matrix[i][3] == 1:
+            if matrix[i][3] == 0:
                 x1 = -x1
                 x2 = -x2
                 d1 = -d1
                 v1 = -v1
-            m.append([x1, x2, d1, v1])
-        m2 = cdd.Matrix(m)
-        m2.rep_type = cdd.RepType.INEQUALITY
-        poly = cdd.Polyhedron(m2)
-        print(poly.get_generators())
-        print([list(adj) for adj in poly.get_adjacency()])
-
-        expr = True
-
-        for i in range(0, len(matrix)):
-            a = matrix[i][0]
-            b = matrix[i][1]
-            c = matrix[i][2]
-            v = matrix[i][4]
-
-            match matrix[i][3]:
-                case 0:
-                    rep = (a * x + b * y + c <= v)
-                case 1:
-                    rep = (-a * x -b * y - c <= -v)
-                case 2:
-                    rep = (a * x + b * y + c < v)
-                case 3:
-                    rep = (a * x + b * y + c > v)
-            expr = expr & rep
-        expressions = []
-        for a in expr.args:
-            rhs = a.args[len(a.args) - 1]
-            expressions.append((rhs, str(a)))
-
-        xRes = sympy.solvers.inequalities.reduce_inequalities(expr.args, [x])
-        yRes = sympy.solvers.inequalities.reduce_inequalities(xRes, [y])
-        print(xRes)
-        print(yRes)
-
-
+            m.append([d1 - v1, x1, x2])
+        for r in m:
+            print(r)
         inter = [[], []]
-        if self.plotInterval[name]:
+        if self.plotInterval[name] != [[], []]:
             inter = self.plotInterval[name]
-            if not inter[0]:
+            if inter[0] == []:
                 inter[0] = [-10, 10]
-            if not inter[1]:
+            if inter[1] == []:
                 inter[1] = [-10, 10]
         else:
             inter = [[-10, 10], [-10, 10]]
+        m2 = cdd.Matrix(m)
+        m2.rep_type = cdd.RepType.INEQUALITY
+        poly = cdd.Polyhedron(m2)
+        polyGens = poly.get_generators()
+        if polyGens.row_size == 0:
+            print(f"Constraints of point {name} lead to no possible answer")
+            print("----------")
+        else:
+            print(polyGens)
+
+            expr = True
+
+            for i in range(0, len(matrix)):
+                a = matrix[i][0]
+                b = matrix[i][1]
+                c = matrix[i][2]
+                v = matrix[i][4]
+
+                match matrix[i][3]:
+                    case 0:
+                        rep = (a * x + b * y + c <= v)
+                    case 1:
+                        rep = (-a * x -b * y - c <= -v)
+                    case 2:
+                        rep = (a * x + b * y + c < v)
+                    case 3:
+                        rep = (a * x + b * y + c > v)
+                expr = expr & rep
+            expressions = []
+            for a in expr.args:
+                if len(a.args) > 0:
+                    rhs = a.args[len(a.args)-1]
+                    expressions.append((rhs, str(a)))
 
 
-
-        p1 = plot(*expressions, (x, inter[0][0], inter[0][1]),
-                  rendering_kw={"linestyle": "--"})
-        p2 = plot_implicit(expr, (x, inter[0][0], inter[0][1]), (y, inter[1][0], inter[1][1]))
-        (p1 + p2).show()
+            #p1 = plot(*expressions, (x, inter[0][0], inter[0][1]),
+                     # rendering_kw={"linestyle": "--"})
+            p2 = plot_implicit(expr, (x, inter[0][0], inter[0][1]), (y, inter[1][0], inter[1][1]))
+            #(p1 + p2).show()
+            p2.show()
+            print(f'----------')

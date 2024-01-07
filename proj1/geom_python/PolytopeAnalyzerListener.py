@@ -131,7 +131,7 @@ class PolytopeAnalyzerListener(GeomListener):
         poly = cdd.Polyhedron(m2)
         polyGens = poly.get_generators()
         if polyGens.row_size == 0:
-            print(f"Constraints of point {name} lead to no possible answer")
+            raise ValueError(f"Constraints of point {name} lead to no possible answer")
         else:
             checkNum = 0
             buffer = []
@@ -146,7 +146,6 @@ class PolytopeAnalyzerListener(GeomListener):
                 plt.ylabel("y")
                 plt.grid()
                 plt.show()
-                print(f"buffer = {buffer}")
             else:
                 print(polyGens)
 

@@ -103,8 +103,9 @@ class SyntaxAnalyzerListener(GeomListener):
             print(error)
         print('parsing done')
 
-    def addSyntaxError(self):
-        self.errors.append('Syntax error detected')
+    @staticmethod
+    def addSyntaxError(line, column, msg, e):
+        raise ValueError("line " + str(line) + ":" + str(column) + " " + msg)
 
     def report(self):
         if not self.errors:

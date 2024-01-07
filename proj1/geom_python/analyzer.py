@@ -1,8 +1,9 @@
 import sys
 from antlr4 import *
+
+import GeomErrorListener
 from GeomLexer import GeomLexer
 from GeomParser import GeomParser
-from GeomListener import GeomListener
 from PolytopeAnalyzerListener import PolytopeAnalyzerListener
 from SyntaxAnalyzerListener import SyntaxAnalyzerListener
 
@@ -12,6 +13,7 @@ def main(argv):
     lexer = GeomLexer(input)
     stream = CommonTokenStream(lexer)
     parser = GeomParser(stream)
+    parser.addErrorListener(GeomErrorListener.VerboseListener())
     tree = parser.main()
 
     syntax = SyntaxAnalyzerListener()
@@ -21,8 +23,8 @@ def main(argv):
     if syntaxRes:
         polytope = PolytopeAnalyzerListener(syntaxRes)
         walker.walk(polytope, tree)
-
-    output.close()
+    else:
+        raise ValueError(f"Syntax check detected errors")
 
 
 if __name__ == '__main__':

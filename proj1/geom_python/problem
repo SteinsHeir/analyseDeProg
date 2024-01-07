@@ -31,5 +31,6 @@ Constraint X2 : {
 }
 Constraint NotBounded : {
     x >= 0;
+    x <= -1;
 }
 }

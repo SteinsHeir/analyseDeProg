@@ -105,9 +105,9 @@ class PolytopeAnalyzerListener(GeomListener):
         vall = int(ctx.numericValue(0).getText())
         valr = int(ctx.numericValue(1).getText())
         if ctx.ID(0).getText() == 'x':
-            self.plotInterval[ctx.ID(1).getText()] = [[vall, valr], []]
+            self.plotInterval[ctx.ID(1).getText()][0] = [vall, valr]
         else:
-            self.plotInterval[ctx.ID(1).getText()] = [[],[vall, valr]]
+            self.plotInterval[ctx.ID(1).getText()][1] = [vall, valr]
 
     def exitMain(self, ctx:GeomParser.MainContext):
         if not self.interval:
@@ -133,17 +133,26 @@ class PolytopeAnalyzerListener(GeomListener):
                     d1 = -d1
                     v1 = -v1
                 m.append([d1 - v1, x1, x2])
-            for r in m:
-                print(r)
             inter = [[], []]
             if self.plotInterval[name] != [[], []]:
                 inter = self.plotInterval[name]
                 if inter[0] == []:
                     inter[0] = [-10, 10]
+                else:
+                    print('hi')
+                    m.append([-inter[0][0], 1, 0])
+                    m.append([inter[0][1], 1, 0])
                 if inter[1] == []:
                     inter[1] = [-10, 10]
+                else:
+                    print('hi2')
+                    m.append([-inter[1][0], 0, 1])
+                    m.append([inter[1][1], 0, 1])
             else:
                 inter = [[-10, 10], [-10, 10]]
+            print(f'inter = {inter}')
+            for r in m:
+                print(r)
             m2 = cdd.Matrix(m)
             m2.rep_type = cdd.RepType.INEQUALITY
             poly = cdd.Polyhedron(m2)

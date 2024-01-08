@@ -162,7 +162,6 @@ class PolytopeAnalyzerListener(GeomListener):
                     m.append([inter[1][1], 0, 1])
             else:
                 inter = [[-10, 10], [-10, 10]]
-            print(f'inter = {inter}')
             for r in m:
                 print(r)
             m2 = cdd.Matrix(m)
@@ -180,12 +179,46 @@ class PolytopeAnalyzerListener(GeomListener):
                         checkNum += 1
                         buffer.append(row)
                 if checkNum == 1:
-                    plt.scatter(buffer[0][1], buffer[0][2])
-                    plt.title(f"point {name}'s feasible values")
-                    plt.xlabel("x")
-                    plt.ylabel("y")
-                    plt.grid()
-                    plt.show()
+                    expr = True
+
+                    for i in range(0, len(matrix)):
+                        a = matrix[i][0]
+                        b = matrix[i][1]
+                        c = matrix[i][2]
+                        v = matrix[i][4]
+
+                        match matrix[i][3]:
+                            case 0:
+                                rep = (a * x + b * y + c <= v)
+                            case 1:
+                                rep = (-a * x -b * y - c <= -v)
+                            case 2:
+                                rep = (a * x + b * y + c < v)
+                            case 3:
+                                rep = (a * x + b * y + c > v)
+                        expr = expr & rep
+
+                    expressions = []
+                    for a in expr.args:
+                        if len(a.args) > 0:
+                            rhs = a.args[len(a.args)-1]
+                            expressions.append((rhs, str(a)))
+
+                    p1 = plot(*expressions, (x, inter[0][0], inter[0][1]), rendering_kw={"linestyle": "--"}, show=False)
+                    p2 = plot_implicit(expr, (x, inter[0][0], inter[0][1]), (y, inter[1][0], inter[1][1]), show=False,  xlabel='x', ylabel='y', title=f"point {name}'s feasible values", legend=True)
+                    ob = p2[0]
+                    #print(dir(ob))
+                    #print(ob.get_data())
+                    if len(ob.get_data()[0]) == 1:
+                        print('POINT')
+                        plt.scatter(buffer[0][1], buffer[0][2])
+                        plt.title(f"point {name}'s feasible values")
+                        plt.xlabel("x")
+                        plt.ylabel("y")
+                        plt.grid()
+                        plt.show()
+                    else:
+                        (p2).show()
                 else:
 
                     expr = True
@@ -206,13 +239,7 @@ class PolytopeAnalyzerListener(GeomListener):
                             case 3:
                                 rep = (a * x + b * y + c > v)
                         expr = expr & rep
-                    expressions = []
-                    for a in expr.args:
-                        if len(a.args) > 0:
-                            rhs = a.args[len(a.args)-1]
-                            expressions.append((rhs, str(a)))
 
-                    p1 = plot(*expressions, (x, inter[0][0], inter[0][1]), rendering_kw={"linestyle": "--"}, show=False)
-                    p2 = plot_implicit(expr, (x, inter[0][0], inter[0][1]), (y, inter[1][0], inter[1][1]), show=False, xlabel='x', ylabel='y', title=f"point {name}'s feasible values")
-                    (p1 + p2).show()
+                    p2 = plot_implicit(expr, (x, inter[0][0], inter[0][1]), (y, inter[1][0], inter[1][1]), show=False, xlabel='x', ylabel='y', title=f"point {name}'s feasible values", legend=True)
+                    (p2).show()
         print(f'----------')

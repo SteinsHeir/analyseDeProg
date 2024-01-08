@@ -1,9 +1,4 @@
-import sys
-from antlr4 import *
 from antlr4.error.ErrorListener import *
-from pprint import pprint
-from GeomLexer import GeomLexer
-from GeomParser import GeomParser
 from SyntaxAnalyzerListener import SyntaxAnalyzerListener
 
 

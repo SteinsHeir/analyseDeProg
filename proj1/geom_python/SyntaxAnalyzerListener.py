@@ -1,8 +1,5 @@
-import sys
-from antlr4 import *
 from GeomParser import GeomParser
 from GeomListener import GeomListener
-from antlr4.error.ErrorListener import *
 
 
 class SyntaxAnalyzerListener(GeomListener):

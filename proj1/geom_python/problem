@@ -27,10 +27,11 @@ Constraint X1 : {
 Constraint X2 : {
     x >= 4;
     y >= 3;
-    x <= 3;
 }
 Constraint NotBounded : {
     x >= 0;
     x <= -1;
 }
+Interval x of EX = [3, 10];
+Interval y of EX = [0, 10];
 }

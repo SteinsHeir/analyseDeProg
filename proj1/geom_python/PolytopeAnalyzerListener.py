@@ -89,7 +89,7 @@ class PolytopeAnalyzerListener(GeomListener):
         if self.interval:
             for matrix in self.matrices:
                 self.drawPolygon(self.matrices[matrix], matrix)
-                input("Press Enter to continue...")
+            input("Press Enter to continue...")
 
     def exitConsdecl(self, ctx: GeomParser.ConsdeclContext):
         self.currentPoint = ''
@@ -101,6 +101,12 @@ class PolytopeAnalyzerListener(GeomListener):
             if i == 3:
                 pass
 
+    def exitInterpointconsdecl(self, ctx:GeomParser.InterpointconsdeclContext):
+        if self.interval:
+            for matrix in self.matrices:
+                self.drawPolygon(self.matrices[matrix], matrix)
+            input("Press Enter to continue...")
+
     def enterIntervaldecl(self, ctx:GeomParser.IntervaldeclContext):
         vall = int(ctx.numericValue(0).getText())
         valr = int(ctx.numericValue(1).getText())
@@ -108,6 +114,12 @@ class PolytopeAnalyzerListener(GeomListener):
             self.plotInterval[ctx.ID(1).getText()][0] = [vall, valr]
         else:
             self.plotInterval[ctx.ID(1).getText()][1] = [vall, valr]
+
+    def exitIntervaldecl(self, ctx:GeomParser.IntervaldeclContext):
+        if self.interval:
+            for matrix in self.matrices:
+                self.drawPolygon(self.matrices[matrix], matrix)
+            input("Press Enter to continue...")
 
     def exitMain(self, ctx:GeomParser.MainContext):
         if not self.interval:
@@ -160,6 +172,7 @@ class PolytopeAnalyzerListener(GeomListener):
             if polyGens.row_size == 0:
                 raise ValueError(f"Constraints of point {name} lead to no possible answer")
             else:
+                print(polyGens)
                 checkNum = 0
                 buffer = []
                 for row in polyGens:
@@ -174,7 +187,6 @@ class PolytopeAnalyzerListener(GeomListener):
                     plt.grid()
                     plt.show()
                 else:
-                    print(polyGens)
 
                     expr = True
 

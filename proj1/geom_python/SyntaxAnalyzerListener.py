@@ -86,8 +86,8 @@ class SyntaxAnalyzerListener(GeomListener):
                 self.errors.append(f'invalid point name at {ctx.getText()}')
             x = int(ctx.numericValue(0).getText())
             y = int(ctx.numericValue(1).getText())
-            if y - x == 0:
-                self.errors.append(f'invalid range not valid at {ctx.getText()}')
+            if y < x:
+                self.errors.append(f'range not valid at {ctx.getText()}')
 
 
     def exitMain(self, ctx: GeomParser.MainContext):
@@ -100,7 +100,7 @@ class SyntaxAnalyzerListener(GeomListener):
                     if not self.points[point]:
                         self.errors.append(f'no constrains for {point} were entered')
         for error in self.errors:
-            print(error)
+            print("\x1b[31m", error, '\033[1;37;0m')
         print('parsing done')
 
     @staticmethod

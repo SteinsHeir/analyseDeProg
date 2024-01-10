@@ -151,13 +151,11 @@ class PolytopeAnalyzerListener(GeomListener):
                 if inter[0] == []:
                     inter[0] = [-10, 10]
                 else:
-                    print('hi')
                     m.append([-inter[0][0], 1, 0])
                     m.append([inter[0][1], 1, 0])
                 if inter[1] == []:
                     inter[1] = [-10, 10]
                 else:
-                    print('hi2')
                     m.append([-inter[1][0], 0, 1])
                     m.append([inter[1][1], 0, 1])
             else:
@@ -207,10 +205,7 @@ class PolytopeAnalyzerListener(GeomListener):
                     p1 = plot(*expressions, (x, inter[0][0], inter[0][1]), rendering_kw={"linestyle": "--"}, show=False)
                     p2 = plot_implicit(expr, (x, inter[0][0], inter[0][1]), (y, inter[1][0], inter[1][1]), show=False,  xlabel='x', ylabel='y', title=f"point {name}'s feasible values", legend=True)
                     ob = p2[0]
-                    #print(dir(ob))
-                    #print(ob.get_data())
                     if len(ob.get_data()[0]) == 1:
-                        print('POINT')
                         plt.scatter(buffer[0][1], buffer[0][2])
                         plt.title(f"point {name}'s feasible values")
                         plt.xlabel("x")

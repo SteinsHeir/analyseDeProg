@@ -28,7 +28,7 @@ Constraint X2 : {
     x >= 4;
     y >= 3;
 }
-Constraint NotBounded : {
+Constraint ERROR : {
     x >= 0;
     x <= -1;
 }

@@ -1,80 +1,111 @@
-from fuzzingbook.Grammars import simple_grammar_fuzzer
+from IPython.core.display_functions import display
+from fuzzingbook.GrammarFuzzer import GrammarFuzzer, display_tree, DerivationTree, tree_to_string
+from fuzzingbook.GeneratorGrammarFuzzer import GeneratorGrammarFuzzer
+from fuzzingbook.GreyboxFuzzer import PowerSchedule, AdvancedMutationFuzzer
+from fuzzingbook.GreyboxGrammarFuzzer import DictMutator, FragmentMutator, SeedWithStructure, LangFuzzer
+from fuzzingbook.Grammars import Grammar, opts, is_valid_grammar
+from fuzzingbook.MutationFuzzer import FunctionCoverageRunner
+from fuzzingbook.Parser import EarleyParser, Parser
 import random
-import mangadex
-import requests
+import subprocess
 import json
+import markdown_to_json
+import string
 
 site = "https://api.mangadex.org"
+grammar_tags = ""
 
-API_GRAMMAR = {
-    "<start>": ["<url>"],
-    "<url>": [f"{site}/<category>"],
-    "<category>": [f"manga"],
+c = []
+s = []
+
+
+def crange(character_start: str, character_end: str):
+    return [chr(i)
+            for i in range(ord(character_start), ord(character_end) + 1)]
+
+
+def srange(characters: str):
+    return [c for c in characters]
+
+
+MD_GRAMMAR = {
+    "<start>": ["<md>"],
+    "<md>": ["<header>\n<list_item>", "<header>\n<char>", "<header>\n<list_item>\n<md>", "<header>\n<char>\n<md>"],
+    "<header>": ["<hashtag> <char>", "\n<char>\n<header_symbol>", "\n<html_tag><char><end_html_tag>"],
+    "<header_symbol>": ["===", "---"],
+    "<html_tag>": ["<left-angle>h<num><right-angle>"],
+    "<end_html_tag>": ["<left-angle>/h<num><right-angle>"],
+    "<left-angle>": ["<"],
+    "<right-angle>": [">"],
+    "<hashtag>": ["#", "##", "###", "####", "#####", "######"],
+    "<num>": crange('0', '6'),
+    "<list_item>": ["<star> <char>", "<star> <char>\n<list_item>"],
+    "<star>": ["*"],
+    "<char>": ["<letter><char>", "<letter>"],
+    "<letter>": srange(string.ascii_letters),
 }
 
-def get_tags():
-    tags = requests.get(
-        f"{site}/manga/tag"
-    ).json()
-    return tags["data"]
+REDUCED_GRAMMAR: Grammar = {
+    "<start>": ["""<md>"""],
+    "<md>": ["<header>\n<list_item>", "<header>\n<char>", "<header>\n<list_item>\n<md>", "<header>\n<char>\n<md>"],
+    "<header>": ["<hashtag> <char>", "\n<char>\n<header_symbol>"],
+    "<header_symbol>": ["===", "---"],
+    "<hashtag>": ["#", "##", "###", "####", "#####", "######"],
+    "<list_item>": ["<list_symbol> <char>", "<list_symbol> <char>\n<list_item>",
+                    "<list_symbol> <char>\n<sublist_item>"],
+    "<sublist_item>": ["\t<list_symbol> <char>", "\t<list_symbol> <char>\n<sublist_item>"],
+    "<list_symbol>": ["*", "-", "+"],
+    "<char>": ["<letter><char>", "<letter>"],
+    "<letter>": srange(string.ascii_letters) + srange(string.digits),
+}
 
 
-def mute_tags(data):
-    tag_list = []
-    nb = random.randint(1, 3)
-    print(nb)
-    while nb > 0:
-        choice = random.choice(data)
-        print(choice["attributes"]["name"]["en"])
-        tag_list.append(choice["id"])
-        nb -= 1
+#REDUCED_GRAMMAR.update({
+#    "<header>": [
+#        ("<hashtag> <char>", opts(post=lambda _, i: c.append(i))),
+#         ("\n<char>\n<header_symbol>", opts(post=lambda i, _: c.append(i)))
+#    ],
+#    "<list_symbol>": [
+#        ("*", opts(post=lambda: s.append("*"))),
+#        ("-", opts(post=lambda: s.append("-"))),
+#        ("+", opts(post=lambda: s.append("+")))
+#    ],
+#})
 
-    if tag_list:
-        mutant = random.choice(tag_list)
-        for mutant in tag_list:
-            print(f"before : {mutant}")
-            tag_list[tag_list.index(mutant)] = flip_random_character(mutant)
-            print(f"after: {mutant}")
-    return tag_list
+def my_parser(inp: str) -> None:
+    parser_ = EarleyParser(REDUCED_GRAMMAR, tokens=MUT_TOKENS)
+    parser_.feed(inp)
 
 
-def add_params(tags):
-    body = {}
-    body["includedTags[]"] = mute_tags(tags)
-    return body
-
-def insert_random_character(arg: str) -> str:
-    pos = random.randint(0, len(arg))
-    random_character = chr(random.randrange(32, 127))
-    return arg[:pos] + random_character + arg[pos:]
-
-def flip_random_character(s):
-    if s == "":
-        return s
-
-    pos = random.randint(0, len(s) - 1)
-    c = s[pos]
-    bit = 1 << random.randint(0, 6)
-    new_c = chr(ord(c) ^ bit)
-    return s[:pos] + new_c + s[pos + 1:]
+assert is_valid_grammar(REDUCED_GRAMMAR)
+fuzzer = GeneratorGrammarFuzzer(REDUCED_GRAMMAR)
+seed1 = fuzzer.fuzz()
+MUT_TOKENS = {"<list_item>", "<header>", "<sublist_item>"}
+parser = EarleyParser(REDUCED_GRAMMAR, tokens=MUT_TOKENS)
+valid_seed = SeedWithStructure(str(seed1))
+print(valid_seed)
 
 
-req = simple_grammar_fuzzer(API_GRAMMAR, "<start>")
-tags = get_tags()
-for i in range(0,7):
-    params = add_params(tags)
-    res = requests.get(req, params).json()
-    if res["result"] == "ok":
-        print(res)
-        for manga in res["data"]:
-            print(manga["id"])
-            print(manga["attributes"]["title"])
-    else:
-        print(res)
-
-#api = mangadex.Api()
-#print(api.get_manga_list(limit = 2))
-
-#res = requests.get('https://api.mangadex.org/manga/random')
-#response = json.loads(res.text)
-#print(response)
+fragment_mutator = FragmentMutator(parser)
+print("####################################")
+print(fragment_mutator.mutate(valid_seed))
+print("####################################")
+schedule = PowerSchedule()
+mut_fuzzer = LangFuzzer([valid_seed.data], fragment_mutator, schedule)
+print("####################################")
+for i in range(0, 10):
+    res = mut_fuzzer.fuzz()
+    print(res)
+    output = open("test.md", 'w')
+    output.write(str(res))
+    output.close()
+    output = open("test.md", 'r')
+    txt = output.read()
+    output.close()
+    jsonified = markdown_to_json.jsonify(txt)
+    print(jsonified)
+    res_json = json.loads(jsonified)
+    for header in c:
+        if not res_json:
+            pass
+    print(markdown_to_json.dictify(txt))

@@ -1,22 +1,25 @@
-from IPython.core.display_functions import display
-from fuzzingbook.GrammarFuzzer import GrammarFuzzer, display_tree, DerivationTree, tree_to_string
+import copy
+
 from fuzzingbook.GeneratorGrammarFuzzer import GeneratorGrammarFuzzer
-from fuzzingbook.GreyboxFuzzer import PowerSchedule, AdvancedMutationFuzzer
-from fuzzingbook.GreyboxGrammarFuzzer import DictMutator, FragmentMutator, SeedWithStructure, LangFuzzer
+from fuzzingbook.GreyboxFuzzer import PowerSchedule
+from fuzzingbook.GreyboxGrammarFuzzer import FragmentMutator, SeedWithStructure, LangFuzzer
 from fuzzingbook.Grammars import Grammar, opts, is_valid_grammar
-from fuzzingbook.MutationFuzzer import FunctionCoverageRunner
-from fuzzingbook.Parser import EarleyParser, Parser
-import random
-import subprocess
+from fuzzingbook.Parser import EarleyParser
 import json
 import markdown_to_json
 import string
-
-site = "https://api.mangadex.org"
-grammar_tags = ""
+import sys
 
 c = []
 s = []
+
+
+def main(argv):
+    try:
+        errors = fuzzing_with_mutations(int(argv[1]))
+        print(f"total number of errors for {argv[1]} inputs : {errors}")
+    except ValueError:
+        print("invalid argument passed")
 
 
 def crange(character_start: str, character_end: str):
@@ -59,53 +62,113 @@ REDUCED_GRAMMAR: Grammar = {
     "<letter>": srange(string.ascii_letters) + srange(string.digits),
 }
 
+REDUCED_EXPANDED_GRAMMAR = copy.deepcopy(REDUCED_GRAMMAR)
 
-#REDUCED_GRAMMAR.update({
-#    "<header>": [
-#        ("<hashtag> <char>", opts(post=lambda _, i: c.append(i))),
-#         ("\n<char>\n<header_symbol>", opts(post=lambda i, _: c.append(i)))
-#    ],
-#    "<list_symbol>": [
-#        ("*", opts(post=lambda: s.append("*"))),
-#        ("-", opts(post=lambda: s.append("-"))),
-#        ("+", opts(post=lambda: s.append("+")))
-#    ],
-#})
-
-def my_parser(inp: str) -> None:
-    parser_ = EarleyParser(REDUCED_GRAMMAR, tokens=MUT_TOKENS)
-    parser_.feed(inp)
-
+REDUCED_EXPANDED_GRAMMAR.update({
+   "<header>": [
+       ("<hashtag> <char>", opts(post=lambda _, i: c.append(i))),
+       ("\n<char>\n<header_symbol>", opts(post=lambda i, _: c.append(i)))
+   ],
+   "<list_symbol>": [
+       ("*", opts(post=lambda: s.append("*"))),
+       ("-", opts(post=lambda: s.append("-"))),
+       ("+", opts(post=lambda: s.append("+")))
+   ],
+})
 
 assert is_valid_grammar(REDUCED_GRAMMAR)
-fuzzer = GeneratorGrammarFuzzer(REDUCED_GRAMMAR)
-seed1 = fuzzer.fuzz()
 MUT_TOKENS = {"<list_item>", "<header>", "<sublist_item>"}
-parser = EarleyParser(REDUCED_GRAMMAR, tokens=MUT_TOKENS)
-valid_seed = SeedWithStructure(str(seed1))
-print(valid_seed)
 
 
-fragment_mutator = FragmentMutator(parser)
-print("####################################")
-print(fragment_mutator.mutate(valid_seed))
-print("####################################")
-schedule = PowerSchedule()
-mut_fuzzer = LangFuzzer([valid_seed.data], fragment_mutator, schedule)
-print("####################################")
-for i in range(0, 10):
-    res = mut_fuzzer.fuzz()
-    print(res)
+def fuzzing_with_mutations(n):
+    fuzzer = GeneratorGrammarFuzzer(REDUCED_GRAMMAR)
+    parser = EarleyParser(REDUCED_GRAMMAR, tokens=MUT_TOKENS)
+    schedule = PowerSchedule()
+    fragment_mutator = FragmentMutator(parser)
+    errors = 0
+
+    data = []
+    for i in range(0, 10):
+        seed = fuzzer.fuzz()
+        valid_seed = SeedWithStructure(seed)
+        fragment_mutator.add_to_fragment_pool(valid_seed)
+        data.append(valid_seed.data)
+    mut_fuzzer = LangFuzzer(data, fragment_mutator, schedule)
+
+    for i in range(0, n):
+        print("####################################")
+        res = mut_fuzzer.fuzz()
+        errors += write_and_check(str(res))
+    return errors
+
+
+def fuzzing_without_mutations(n):
+    fuzzer = GeneratorGrammarFuzzer(REDUCED_GRAMMAR)
+    errors = 0
+    for i in range(0, n):
+        res = fuzzer.fuzz()
+        errors += write_and_check(res)
+    return errors
+
+
+def write_and_check(result):
+    curr_errors = 0
     output = open("test.md", 'w')
-    output.write(str(res))
+    output.write(result)
     output.close()
+    infos = parse_md()
     output = open("test.md", 'r')
     txt = output.read()
     output.close()
-    jsonified = markdown_to_json.jsonify(txt)
-    print(jsonified)
-    res_json = json.loads(jsonified)
-    for header in c:
-        if not res_json:
-            pass
+    jsonified = json.loads(markdown_to_json.jsonify(txt))
+    print(f"Parsed values\n"
+          f"=============\n"
+          f"keys = {infos['cles']}\n"
+          f"list elems = {infos['listes']}\n"
+          f"values = {infos['vals']}\n")
+    print(f"json = {jsonified}")
+    for k in infos['cles']:
+        if not k in jsonified:
+            curr_errors += 1
     print(markdown_to_json.dictify(txt))
+    print(f"current errors = {curr_errors}")
+    return curr_errors
+
+
+def parse_md():
+    info = {}
+    output = open("test.md", 'r')
+    txt = output.readlines()
+    output.close()
+    c = []
+    l = []
+    v = []
+    for line in txt:
+        line_index = txt.index(line)
+        if line[0] == '#':
+            c.append(line.split(' ')[1].strip('\n'))
+        elif line == "===\n" or line == "---\n":
+            c.append(txt[line_index - 1].strip('\n'))
+        elif line[0] == '+' or line[0] == '-' or line[0] == '*':
+            l.append(line.split(' ')[1].strip('\n'))
+        elif line.split(' ')[0].strip('\t') != line.split(' ')[0] and (
+                line.split(' ')[0].strip('\t') == '+' or line.split(' ')[0].strip('\t') == '-' or line.split(' ')[
+            0].strip('\t') == '*'):
+            if not isinstance(l[len(l) - 1], str):
+                l[len(l) - 1].append(line.split(' ')[1].strip('\n').strip('\t'))
+            else:
+                l.append([line.split(' ')[1].strip('\n').strip('\t')])
+        elif line_index == len(txt) - 1:
+            v.append(line.strip('\n'))
+        elif line != '\n' and (txt[line_index + 1] != "===\n" and txt[line_index + 1] != "---\n"):
+            v.append(line.strip('\n'))
+        else:
+            pass
+    info['cles'] = c
+    info['listes'] = l
+    info['vals'] = v
+    return info
+
+
+if __name__ == '__main__':
+    main(sys.argv)
